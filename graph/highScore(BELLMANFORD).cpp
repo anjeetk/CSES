@@ -1,76 +1,90 @@
 #include <bits/stdc++.h>
-
 using namespace std;
-typedef long long ll;
-const int maxN = 2501;
-const int maxM = 5001;
-const ll INF = 0x3f3f3f3f3f3f3f3f;
 
-struct Edge
+#define int long long
+typedef pair<int, int> pp;
+
+int32_t main()
 {
-    int a, b;
-    ll c;
-} edges[maxM];
+    int n, m;
+    cin >> n >> m;
 
-int N, M;
-ll dp[maxN];
-bool vis[maxN], visR[maxN];
-vector<int> G[maxN], GR[maxN];
-
-void dfs(int u)
-{
-    vis[u] = true;
-    for (int v : G[u])
-        if (!vis[v])
-            dfs(v);
-}
-
-void dfsR(int u)
-{
-    visR[u] = true;
-    for (int v : GR[u])
-        if (!visR[v])
-            dfsR(v);
-}
-
-int main()
-{
-    scanf("%d %d", &N, &M);
-    for (int i = 0, a, b; i < M; i++)
+    vector<vector<pp>> graph(n + 1);
+    for (int i = 0; i < m; i++)
     {
-        ll c;
-        scanf("%d %d %lld", &a, &b, &c);
-        edges[i] = {a, b, -c};
-        G[a].push_back(b);
-        GR[b].push_back(a);
+        int a, b, c;
+        cin >> a >> b >> c;
+        graph[a].push_back({b, -c}); // negate weight for longest path
     }
-    dfs(1);
-    dfsR(N);
 
-    fill(dp + 2, dp + N + 1, INF);
-    bool improvement = true;
-    for (int iter = 0; iter < N && improvement; iter++)
+    vector<int> dist(n + 1, 1e15);
+    dist[1] = 0;
+
+    // Bellman-Ford relaxation (n-1 times)
+    for (int i = 1; i < n; i++)
     {
-        improvement = false;
-        for (int i = 0; i < M; i++)
+        for (int j = 1; j <= n; j++)
         {
-            int u = edges[i].a;
-            int v = edges[i].b;
-            ll w = edges[i].c;
-
-            if (dp[v] > dp[u] + w)
+            if (dist[j] == 1e15)
+                continue;
+            for (auto &it : graph[j])
             {
-                dp[v] = dp[u] + w;
-                improvement = true;
-
-                if (iter == N - 1 && vis[v] && visR[v])
+                int dest = it.first;
+                int weight = it.second;
+                if (dist[j] + weight < dist[dest])
                 {
-                    printf("-1\n");
-                    return 0;
+                    dist[dest] = dist[j] + weight;
                 }
             }
         }
     }
 
-    printf("%lld\n", -dp[N]);
+    // Detect negative cycles reachable from source that can reach destination
+    vector<int> affected(n + 1, 0);
+    for (int j = 1; j <= n; j++)
+    {
+        if (dist[j] == 1e15)
+            continue;
+        for (auto &it : graph[j])
+        {
+            int dest = it.first;
+            int weight = it.second;
+            if (dist[j] + weight < dist[dest])
+            {
+                affected[j] = 1;
+                affected[dest] = 1;
+            }
+        }
+    }
+
+    // Propagate the effect of negative cycles
+    queue<int> q;
+    for (int i = 1; i <= n; i++)
+        if (affected[i])
+            q.push(i);
+
+    while (!q.empty())
+    {
+        int u = q.front();
+        q.pop();
+        for (auto &it : graph[u])
+        {
+            if (!affected[it.first])
+            {
+                affected[it.first] = 1;
+                q.push(it.first);
+            }
+        }
+    }
+
+    if (affected[n])
+    {
+        cout << -1 << endl; // infinite score due to positive cycle
+    }
+    else
+    {
+        cout << -dist[n] << endl; // negate back for longest path
+    }
+
+    return 0;
 }
